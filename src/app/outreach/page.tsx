@@ -63,8 +63,9 @@ export default function OutreachPage() {
       );
       setMessage(result);
     } catch (e) {
-      console.error("Outreach generation error:", e);
-      setMessage("Failed to generate message. Please try again.");
+      console.error("[Outreach] Generation error:", e);
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setMessage("Failed to generate message: " + msg.slice(0, 200));
     } finally {
       setLoading(false);
     }

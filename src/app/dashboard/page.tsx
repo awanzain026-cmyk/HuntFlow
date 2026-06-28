@@ -80,21 +80,36 @@ export default function DashboardPage() {
     setGeneratedLeads([]);
     try {
       const raw = await generateLeads(idealClient.trim(), service.trim());
-      const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      console.log("[Dashboard] Raw AI response:", raw.slice(0, 500));
+
+      // Extract JSON from markdown fences and clean up
+      const cleaned = raw
+        .replace(/```json|```JSON|```/g, "")
+        .trim();
+      const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        console.error("[Dashboard] No JSON array found in response:", cleaned.slice(0, 300));
+        throw new Error("AI response did not contain valid lead data. Raw: " + cleaned.slice(0, 200));
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const parsed: any[] = JSON.parse(jsonMatch[0]);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        throw new Error("AI returned empty or invalid lead array");
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const scored: Lead[] = parsed.map((p: any) => {
-        const score = p.score ?? 50;
+        const score = typeof p.score === "number" ? p.score : 50;
         const label: Lead["scoreLabel"] =
           score >= 80 ? "🔥 Hot" : score >= 50 ? "⚡ Warm" : "❄️ Cold";
         return {
           id: generateId(),
-          businessName: p.businessName,
-          ownerName: p.ownerName,
-          businessType: p.businessType,
-          location: p.location,
-          businessSize: p.businessSize || "Small",
-          painPoint: p.painPoint,
-          email: p.email,
+          businessName: p.businessName || "Unknown Business",
+          ownerName: p.ownerName || "Unknown Owner",
+          businessType: p.businessType || "General",
+          location: p.location || "Pakistan",
+          businessSize: (p.businessSize === "Small" || p.businessSize === "Medium") ? p.businessSize : "Small",
+          painPoint: p.painPoint || "Needs digital solutions",
+          email: p.email || "contact@example.com",
           score,
           scoreLabel: label,
           status: "New",
@@ -102,6 +117,7 @@ export default function DashboardPage() {
           saved: false,
         };
       });
+      console.log("[Dashboard] Parsed leads:", scored.length);
       setGeneratedLeads(scored);
 
       addActivity({
@@ -112,8 +128,9 @@ export default function DashboardPage() {
       });
       setActivities(getActivities().slice(0, 5));
     } catch (e) {
-      console.error("AI generation error:", e);
-      setError("Failed to generate leads. Please try again.");
+      console.error("[Dashboard] AI generation error:", e);
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setError("Failed to generate leads: " + msg.slice(0, 200));
     } finally {
       setLoading(false);
     }
