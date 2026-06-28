@@ -1,57 +1,53 @@
-const SODEM_API = "https://sodeom.com/v1/chat/completions";
+const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
-export async function callSodeom(prompt: string, maxTokens = 1024): Promise<string> {
-  console.log("[Sodeom] Sending request. Prompt length:", prompt.length, "maxTokens:", maxTokens);
+export async function callAI(prompt: string, maxTokens = 1024): Promise<string> {
+  // Try Gemini first if key is set
+  if (GEMINI_API_KEY) {
+    try {
+      const res = await fetch(`${GEMINI_API}?key=${GEMINI_API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: maxTokens },
+        }),
+      });
 
-  let res: Response;
-  try {
-    res = await fetch(SODEM_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: maxTokens,
-      }),
-    });
-  } catch (fetchError) {
-    console.error("[Sodeom] Network error:", fetchError);
-    throw new Error(`Network error - cannot reach Sodeom API. Details: ${fetchError}`);
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text.trim();
+      } else {
+        const errBody = await res.text();
+        console.warn("[AI] Gemini failed:", res.status, errBody.slice(0, 200));
+      }
+    } catch (e) {
+      console.warn("[AI] Gemini error:", e);
+    }
   }
 
-  console.log("[Sodeom] Response status:", res.status, res.statusText);
+  // Fallback: proxy through our own API route (server-side fetch avoids CORS/blocker issues)
+  console.log("[AI] Calling Sodeom via /api/ai proxy. Prompt length:", prompt.length);
+  const res = await fetch("/api/ai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, maxTokens }),
+  });
 
-  if (!res.ok) {
-    let body = "";
-    try { body = await res.text(); } catch { body = "(unreadable)"; }
-    console.error("[Sodeom] Error body:", body.slice(0, 500));
-    throw new Error(`API returned ${res.status} ${res.statusText}: ${body.slice(0, 200)}`);
+  const data = await res.json();
+
+  if (!res.ok || !data.content) {
+    const errMsg = data.error || `HTTP ${res.status}`;
+    throw new Error(`AI request failed: ${errMsg}`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let data: any;
-  try {
-    data = await res.json();
-  } catch {
-    const text = await res.text();
-    console.error("[Sodeom] JSON parse failed. Raw:", text.slice(0, 500));
-    throw new Error(`Invalid JSON response: ${text.slice(0, 200)}`);
-  }
-
-  console.log("[Sodeom] Full response:", JSON.stringify(data).slice(0, 500));
-
-  if (!data.choices?.[0]?.message?.content) {
-    console.error("[Sodeom] Bad structure:", JSON.stringify(data).slice(0, 300));
-    throw new Error("API returned unexpected response structure. Check console.");
-  }
-
-  const result = data.choices[0].message.content.trim();
-  console.log("[Sodeom] Content preview:", result.slice(0, 300));
-  return result;
+  return data.content;
 }
 
 export async function generateLeads(idealClient: string, service: string): Promise<string> {
   console.log("[generateLeads] Starting with:", { idealClient, service });
+
   const prompt = `You are a lead generation AI. Generate exactly 8 realistic business leads for a freelancer named Muhammad Zain who offers "${service}" services.
 
 Ideal client description: "${idealClient}"
@@ -70,7 +66,7 @@ Format as JSON array. Each object: { "businessName", "ownerName", "businessType"
 
 Return ONLY the JSON array, no other text.`;
 
-  return callSodeom(prompt, 3072);
+  return callAI(prompt, 3072);
 }
 
 export async function generateOutreach(
@@ -101,10 +97,10 @@ Requirements:
 
 Write the complete message.`;
 
-  return callSodeom(prompt, 1024);
+  return callAI(prompt, 1024);
 }
 
 export async function generateTip(): Promise<string> {
   const prompt = `Give one actionable freelancing tip for finding and converting high-quality clients. Keep it under 3 sentences. Make it specific and practical. Return just the tip text, no introduction.`;
-  return callSodeom(prompt, 256);
+  return callAI(prompt, 256);
 }
