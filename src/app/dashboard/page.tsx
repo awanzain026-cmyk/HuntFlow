@@ -14,7 +14,7 @@ import {
   BarChart3,
   Loader2,
   Sparkles,
-  Database,
+  Trash2,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import KpiCard from "@/components/KpiCard";
@@ -29,9 +29,8 @@ import {
   addActivity,
   getActivities,
   generateId,
-  storeDemoData,
+  clearAllLeads,
 } from "@/lib/store";
-import { demoLeads } from "@/lib/demoData";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -42,6 +41,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [generatedLeads, setGeneratedLeads] = useState<Lead[]>([]);
   const [error, setError] = useState("");
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const refreshData = useCallback(() => {
     setLeads(getLeads());
@@ -166,18 +166,16 @@ export default function DashboardPage() {
     router.push("/outreach");
   };
 
-  const loadDemoData = () => {
-    storeDemoData(demoLeads);
+  const handleClearAll = () => {
+    if (!confirmClear) {
+      setConfirmClear(true);
+      setTimeout(() => setConfirmClear(false), 3000);
+      return;
+    }
+    clearAllLeads();
     setGeneratedLeads([]);
+    setConfirmClear(false);
     refreshData();
-
-    addActivity({
-      id: generateId(),
-      type: "lead_found",
-      message: "Loaded 6 demo leads to showcase the system",
-      timestamp: new Date().toISOString(),
-    });
-    setActivities(getActivities().slice(0, 5));
   };
 
   return (
@@ -198,11 +196,15 @@ export default function DashboardPage() {
           </p>
         </div>
         <button
-          onClick={loadDemoData}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium glass text-gray-300 hover:text-white hover:border-[#6C63FF]/20 transition-all"
+          onClick={handleClearAll}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            confirmClear
+              ? "bg-red-500/20 text-red-400 border border-red-500/30"
+              : "glass text-gray-300 hover:text-red-400 hover:border-red-500/20"
+          }`}
         >
-          <Database className="w-4 h-4" />
-          Load Demo Data
+          <Trash2 className="w-4 h-4" />
+          {confirmClear ? "Sure? Click again" : "Clear All"}
         </button>
       </motion.div>
 

@@ -77,15 +77,10 @@ export function addActivity(activity: Activity): void {
   saveActivities(activities);
 }
 
-export function storeDemoData(leads: Lead[]): void {
-  saveLeads(leads);
-  const activities: Activity[] = leads.map((l) => ({
-    id: crypto.randomUUID(),
-    type: "lead_found" as const,
-    message: `Found lead: ${l.businessName} (${l.location})`,
-    timestamp: new Date().toISOString(),
-  }));
-  saveActivities(activities);
+export function clearAllLeads(): void {
+  setItem("huntflow_leads", []);
+  setItem("huntflow_activities", []);
+  setItem("huntflow_drafts", []);
 }
 
 export function generateId(): string {
