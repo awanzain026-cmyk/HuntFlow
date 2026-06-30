@@ -153,7 +153,7 @@ export default function BriefingPage() {
         <button
           onClick={refreshAll}
           disabled={refreshing}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium glass text-gray-300 hover:text-white hover:border-[#6C63FF]/20 disabled:opacity-50 transition-all"
+          className="cursor-pointer flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium glass text-gray-300 hover:text-white hover:border-[#6C63FF]/20 disabled:opacity-50 transition-all"
         >
           {refreshing ? (
             <Loader2 className="w-4 h-4 animate-spin" />

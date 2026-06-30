@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   Users,
   Flame,
@@ -34,6 +34,8 @@ import {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const prefersReduced = useReducedMotion();
+  const clearTimer = useRef<ReturnType<typeof setTimeout>>();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [idealClient, setIdealClient] = useState("");
@@ -50,15 +52,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     refreshData();
+    return () => clearTimer.current && clearTimeout(clearTimer.current);
   }, [refreshData]);
 
+  const totalLeads = leads.length;
   const savedLeads = leads.filter((l) => l.saved);
   const hotLeads = savedLeads.filter((l) => l.score >= 80);
   const responseRate = savedLeads.length > 0
     ? Math.round((savedLeads.filter((l) => l.status === "Replied" || l.status === "Converted").length / savedLeads.length) * 100)
     : 0;
+  const hotTrend = hotLeads.length > 0 ? "up" : "down";
 
-  // Chart data
   const chartData = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
@@ -70,6 +74,9 @@ export default function DashboardPage() {
     return { day, leads: count };
   });
 
+  const anim = (delay = 0) =>
+    prefersReduced ? {} : { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { delay, duration: 0.4 } };
+
   const handleHunt = async () => {
     if (!idealClient.trim() || !service.trim()) {
       setError("Please fill in both fields");
@@ -80,46 +87,29 @@ export default function DashboardPage() {
     setGeneratedLeads([]);
     try {
       const raw = await generateLeads(idealClient.trim(), service.trim());
-      console.log("[Dashboard] Raw AI response:", raw.slice(0, 500));
-
-      // Extract JSON from markdown fences and clean up
-      const cleaned = raw
-        .replace(/```json|```JSON|```/g, "")
-        .trim();
+      const cleaned = raw.replace(/```json|```JSON|```/g, "").trim();
       const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        console.error("[Dashboard] No JSON array found in response:", cleaned.slice(0, 300));
-        throw new Error("AI response did not contain valid lead data. Raw: " + cleaned.slice(0, 200));
-      }
+      if (!jsonMatch) throw new Error("AI response did not contain valid lead data.");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parsed: any[] = JSON.parse(jsonMatch[0]);
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        throw new Error("AI returned empty or invalid lead array");
-      }
+      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("AI returned empty lead array");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const scored: Lead[] = parsed.map((p: any) => {
-        const score = typeof p.score === "number" ? p.score : 50;
-        const label: Lead["scoreLabel"] =
-          score >= 80 ? "🔥 Hot" : score >= 50 ? "⚡ Warm" : "❄️ Cold";
-        return {
-          id: generateId(),
-          businessName: p.businessName || "Unknown Business",
-          ownerName: p.ownerName || "Unknown Owner",
-          businessType: p.businessType || "General",
-          location: p.location || "Pakistan",
-          businessSize: (p.businessSize === "Small" || p.businessSize === "Medium") ? p.businessSize : "Small",
-          painPoint: p.painPoint || "Needs digital solutions",
-          email: p.email || "contact@example.com",
-          score,
-          scoreLabel: label,
-          status: "New",
-          createdAt: new Date().toISOString(),
-          saved: false,
-        };
-      });
-      console.log("[Dashboard] Parsed leads:", scored.length);
+      const scored: Lead[] = parsed.map((p: any) => ({
+        id: generateId(),
+        businessName: p.businessName || "Unknown Business",
+        ownerName: p.ownerName || "Unknown Owner",
+        businessType: p.businessType || "General",
+        location: p.location || "Pakistan",
+        businessSize: (p.businessSize === "Small" || p.businessSize === "Medium") ? p.businessSize : "Small",
+        painPoint: p.painPoint || "Needs digital solutions",
+        email: p.email || "contact@example.com",
+        score: typeof p.score === "number" ? p.score : 50,
+        scoreLabel: (p.score ?? 50) >= 80 ? "🔥 Hot" : (p.score ?? 50) >= 50 ? "⚡ Warm" : "❄️ Cold",
+        status: "New",
+        createdAt: new Date().toISOString(),
+        saved: false,
+      }));
       setGeneratedLeads(scored);
-
       addActivity({
         id: generateId(),
         type: "lead_found",
@@ -130,38 +120,36 @@ export default function DashboardPage() {
     } catch (e) {
       console.error("[Dashboard] AI generation error:", e);
       const msg = e instanceof Error ? e.message : "Unknown error";
-      setError("Failed to generate leads: " + msg.slice(0, 200));
+      setError(msg.slice(0, 300));
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = (lead: Lead) => {
-    const updated = { ...lead, saved: !lead.saved };
-    if (!lead.saved) {
+    const willSave = !lead.saved;
+    const updated = { ...lead, saved: willSave };
+    if (willSave) {
       addLead(updated);
     } else {
       updateLead(lead.id, { saved: false });
     }
     setGeneratedLeads((prev) => prev.map((l) => (l.id === lead.id ? updated : l)));
     refreshData();
-
     addActivity({
       id: generateId(),
-      type: "lead_saved",
-      message: `${lead.saved ? "Removed" : "Saved"} lead: ${lead.businessName}`,
+      type: willSave ? "lead_saved" : "lead_unsaved",
+      message: `${willSave ? "Saved" : "Removed"} lead: ${lead.businessName}`,
       timestamp: new Date().toISOString(),
     });
     setActivities(getActivities().slice(0, 5));
   };
 
   const handleOutreach = (lead: Lead) => {
-    // Save lead first, then navigate
     if (!lead.saved) {
       addLead({ ...lead, saved: true });
       refreshData();
     }
-    // Store selected lead in localStorage for outreach page
     localStorage.setItem("huntflow_selected_lead", lead.id);
     router.push("/outreach");
   };
@@ -169,9 +157,10 @@ export default function DashboardPage() {
   const handleClearAll = () => {
     if (!confirmClear) {
       setConfirmClear(true);
-      setTimeout(() => setConfirmClear(false), 3000);
+      clearTimer.current = setTimeout(() => setConfirmClear(false), 3000);
       return;
     }
+    if (clearTimer.current) clearTimeout(clearTimer.current);
     clearAllLeads();
     setGeneratedLeads([]);
     setConfirmClear(false);
@@ -180,24 +169,17 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8"
-      >
+      <motion.div {...anim(0)} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
             <Crosshair className="w-7 h-7 text-[#6C63FF]" />
             Dashboard
           </h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Your AI-powered client acquisition command center
-          </p>
+          <p className="text-gray-400 text-sm mt-1">Your AI-powered client acquisition command center</p>
         </div>
         <button
           onClick={handleClearAll}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          className={`cursor-pointer flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
             confirmClear
               ? "bg-red-500/20 text-red-400 border border-red-500/30"
               : "glass text-gray-300 hover:text-red-400 hover:border-red-500/20"
@@ -208,54 +190,18 @@ export default function DashboardPage() {
         </button>
       </motion.div>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KpiCard
-          title="Total Leads Found"
-          value={savedLeads.length}
-          icon={<Users className="w-5 h-5" />}
-          trend="up"
-          trendValue="+12 this week"
-          delay={0}
-        />
-        <KpiCard
-          title="Hot Leads"
-          value={hotLeads.length}
-          icon={<Flame className="w-5 h-5" />}
-          trend={hotLeads.length > 0 ? "up" : "down"}
-          trendValue={`${hotLeads.length} ready to contact`}
-          delay={0.1}
-        />
-        <KpiCard
-          title="Leads Saved"
-          value={savedLeads.length}
-          icon={<FileText className="w-5 h-5" />}
-          trend="up"
-          trendValue="All saved leads"
-          delay={0.2}
-        />
-        <KpiCard
-          title="Response Rate"
-          value={`${responseRate}%`}
-          icon={<TrendingUp className="w-5 h-5" />}
-          trend={responseRate > 30 ? "up" : "down"}
-          trendValue={responseRate > 30 ? "On track" : "Needs work"}
-          delay={0.3}
-        />
+        <KpiCard title="Total Leads Found" value={totalLeads} icon={<Users className="w-5 h-5" />} delay={0} />
+        <KpiCard title="Hot Leads" value={hotLeads.length} icon={<Flame className="w-5 h-5" />} trend={hotTrend} trendValue={`${hotLeads.length} ready to contact`} delay={0.1} />
+        <KpiCard title="Leads Saved" value={savedLeads.length} icon={<FileText className="w-5 h-5" />} delay={0.2} />
+        <KpiCard title="Response Rate" value={`${responseRate}%`} icon={<TrendingUp className="w-5 h-5" />} trend={responseRate > 30 ? "up" : "down"} trendValue={responseRate > 30 ? "On track" : "Needs work"} delay={0.3} />
       </div>
 
-      {/* Lead Research Panel */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="glass rounded-2xl p-6 mb-8"
-      >
+      <motion.div {...anim(0.2)} className="glass rounded-2xl p-6 mb-8">
         <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <Search className="w-5 h-5 text-[#6C63FF]" />
           Lead Research Panel
         </h2>
-
         <div className="grid sm:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm text-gray-400 mb-1.5">Describe your ideal client</label>
@@ -278,93 +224,58 @@ export default function DashboardPage() {
             />
           </div>
         </div>
-
-        {error && (
-          <p className="text-red-400 text-sm mb-3">{error}</p>
-        )}
-
+        {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
         <div className="flex items-center gap-3">
           <button
             onClick={handleHunt}
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium accent-gradient text-white hover:opacity-90 disabled:opacity-50 transition-all"
+            className="cursor-pointer flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium accent-gradient text-white hover:opacity-90 disabled:opacity-50 transition-all"
           >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Crosshair className="w-4 h-4" />
-            )}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
             {loading ? "Hunting..." : "Hunt Leads"}
           </button>
-          <p className="text-xs text-gray-500">
-            AI generates 8 tailored leads from Pakistani markets
-          </p>
+          <p className="text-xs text-gray-500">AI generates 8 tailored leads from Pakistani markets</p>
         </div>
       </motion.div>
 
-      {/* Generated Leads */}
       {loading && (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <LeadCardSkeleton key={i} />
           ))}
         </div>
       )}
 
       {generatedLeads.length > 0 && !loading && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mb-8"
-        >
+        <motion.div {...anim(0)} className="mb-8">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-[#6C63FF]" />
             Generated Leads ({generatedLeads.length})
           </h3>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {generatedLeads.map((lead, i) => (
-              <LeadCard
-                key={lead.id}
-                lead={lead}
-                onSave={handleSave}
-                onOutreach={handleOutreach}
-                index={i}
-              />
+              <LeadCard key={lead.id} lead={lead} onSave={handleSave} onOutreach={handleOutreach} index={i} />
             ))}
           </div>
         </motion.div>
       )}
 
-      {/* Bottom Grid: Activity + Chart */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Recent Activity */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="glass rounded-2xl p-6"
-        >
+        <motion.div {...anim(0.3)} className="glass rounded-2xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <Clock className="w-5 h-5 text-[#6C63FF]" />
             Recent Activity
           </h3>
           {activities.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-8">
-              No activity yet. Hunt some leads to get started!
-            </p>
+            <p className="text-sm text-gray-500 text-center py-8">No activity yet. Hunt some leads to get started!</p>
           ) : (
             <div className="space-y-3">
               {activities.map((act) => (
-                <div
-                  key={act.id}
-                  className="flex items-start gap-3 p-3 rounded-xl bg-white/5"
-                >
+                <div key={act.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/5">
                   <div className="w-2 h-2 rounded-full bg-[#6C63FF] mt-1.5 shrink-0" />
                   <div>
                     <p className="text-sm text-gray-300">{act.message}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {new Date(act.timestamp).toLocaleString()}
-                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">{new Date(act.timestamp).toLocaleString()}</p>
                   </div>
                 </div>
               ))}
@@ -372,21 +283,13 @@ export default function DashboardPage() {
           )}
         </motion.div>
 
-        {/* Bar Chart */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="glass rounded-2xl p-6"
-        >
+        <motion.div {...anim(0.4)} className="glass rounded-2xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-[#6C63FF]" />
             Leads Found (Last 7 Days)
           </h3>
           {chartData.every((d) => d.leads === 0) ? (
-            <p className="text-sm text-gray-500 text-center py-8">
-              No leads found yet. Start hunting to see chart data.
-            </p>
+            <p className="text-sm text-gray-500 text-center py-8">No leads found yet. Start hunting to see chart data.</p>
           ) : (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -394,14 +297,7 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#2d2d4a" />
                   <XAxis dataKey="day" stroke="#6b7280" fontSize={12} />
                   <YAxis stroke="#6b7280" fontSize={12} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#1a1a2e",
-                      border: "1px solid rgba(108,99,255,0.2)",
-                      borderRadius: "12px",
-                      color: "#e2e8f0",
-                    }}
-                  />
+                  <Tooltip contentStyle={{ background: "#1a1a2e", border: "1px solid rgba(108,99,255,0.2)", borderRadius: "12px", color: "#e2e8f0" }} />
                   <Bar dataKey="leads" fill="#6C63FF" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>

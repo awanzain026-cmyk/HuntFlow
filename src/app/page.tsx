@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   Crosshair,
   Search,
@@ -42,6 +42,9 @@ const stats = [
 ];
 
 export default function LandingPage() {
+  const prefersReduced = useReducedMotion();
+  const anim = (delay = 0) =>
+    prefersReduced ? {} : { initial: { opacity: 0, y: 30 }, animate: { opacity: 1, y: 0 }, transition: { delay, duration: 0.6 } };
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       {/* Nav */}
@@ -55,7 +58,7 @@ export default function LandingPage() {
           </div>
           <Link
             href="/dashboard"
-            className="px-5 py-2 rounded-xl text-sm font-medium accent-gradient text-white hover:opacity-90 transition-all pulse-accent"
+            className="cursor-pointer px-5 py-2 rounded-xl text-sm font-medium accent-gradient text-white hover:opacity-90 transition-all pulse-accent"
           >
             Launch Dashboard
           </Link>
@@ -65,21 +68,14 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="pt-32 pb-20 px-4">
         <div className="max-w-5xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
+          <motion.div {...anim(0)}>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#6C63FF]/10 border border-[#6C63FF]/20 text-sm text-[#6C63FF] mb-8">
               <Zap className="w-4 h-4" />
               AI-Powered Client Acquisition
             </div>
           </motion.div>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.6 }}
+          <motion.h1 {...anim(0.1)}
             className="text-4xl sm:text-5xl md:text-7xl font-extrabold text-white leading-tight mb-6"
           >
             Your AI Agent That{" "}
@@ -89,32 +85,26 @@ export default function LandingPage() {
             Clients
           </motion.h1>
 
-          <motion.p
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
+          <motion.p {...anim(0.2)}
             className="text-lg sm:text-xl text-gray-400 max-w-3xl mx-auto mb-10 leading-relaxed"
           >
             HuntFlow researches leads, scores them, writes personalized outreach
             and drafts emails — while you focus on doing the work.
           </motion.p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
+          <motion.div {...anim(0.3)}
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
             <Link
               href="/dashboard"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-base font-semibold accent-gradient text-white hover:opacity-90 transition-all pulse-accent"
-            >
-              Launch Dashboard
-              <ArrowRight className="w-5 h-5" />
-            </Link>
+            className="cursor-pointer inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-base font-semibold accent-gradient text-white hover:opacity-90 transition-all pulse-accent"
+          >
+            Launch Dashboard
+            <ArrowRight className="w-5 h-5" />
+          </Link>
             <Link
               href="/briefing"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-base font-medium glass text-gray-300 hover:text-white hover:border-[#6C63FF]/30 transition-all"
+              className="cursor-pointer inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-base font-medium glass text-gray-300 hover:text-white hover:border-[#6C63FF]/30 transition-all"
             >
               View Daily Briefing
             </Link>
@@ -127,11 +117,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {stats.map((s, i) => (
-              <motion.div
-                key={s.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 + i * 0.1, duration: 0.4 }}
+              <motion.div key={s.label} {...anim(0.4 + i * 0.1)}
                 className="glass rounded-2xl p-5 text-center"
               >
                 <p className="text-2xl sm:text-3xl font-bold text-white">{s.value}</p>
@@ -146,9 +132,7 @@ export default function LandingPage() {
       <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
           <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            {...(!prefersReduced ? { initial: { opacity: 0, y: 20 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true } } : {})}
             className="text-3xl sm:text-4xl font-bold text-white text-center mb-14"
           >
             Everything You Need to{" "}
@@ -161,10 +145,7 @@ export default function LandingPage() {
             {features.map((f, i) => (
               <motion.div
                 key={f.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
+                {...(!prefersReduced ? { initial: { opacity: 0, y: 20 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true }, transition: { delay: i * 0.1 } } : {})}
                 className="glass rounded-2xl p-6 hover:border-[#6C63FF]/20 transition-all"
               >
                 <div className="w-12 h-12 rounded-xl bg-[#6C63FF]/15 flex items-center justify-center mb-4">
@@ -181,9 +162,7 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="py-20 px-4">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          {...(!prefersReduced ? { initial: { opacity: 0, y: 30 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true } } : {})}
           className="max-w-3xl mx-auto glass rounded-3xl p-10 sm:p-14 text-center border border-[#6C63FF]/10"
         >
           <div className="w-16 h-16 rounded-2xl accent-gradient flex items-center justify-center mx-auto mb-6">
@@ -198,7 +177,7 @@ export default function LandingPage() {
           </p>
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl text-base font-semibold accent-gradient text-white hover:opacity-90 transition-all"
+            className="cursor-pointer inline-flex items-center gap-2 px-8 py-4 rounded-2xl text-base font-semibold accent-gradient text-white hover:opacity-90 transition-all"
           >
             Launch Dashboard
             <ArrowRight className="w-5 h-5" />

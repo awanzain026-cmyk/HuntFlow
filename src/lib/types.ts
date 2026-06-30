@@ -25,24 +25,23 @@ export interface Draft {
   createdAt: string;
 }
 
-export interface Activity {
-  id: string;
-  type: "lead_found" | "lead_saved" | "message_generated" | "lead_contacted" | "lead_converted";
-  message: string;
-  timestamp: string;
-}
-
-export interface KpiData {
-  totalLeads: number;
-  hotLeads: number;
-  draftsThisWeek: number;
-  responseRate: number;
-}
-
 export interface BriefingData {
   totalLeads: number;
   needsFollowUp: number;
   draftsWaiting: number;
   tipOfDay: string;
   bestPlatform: string;
+}
+
+export interface Activity {
+  id: string;
+  type:
+    | "lead_found"
+    | "lead_saved"
+    | "lead_unsaved"
+    | "message_generated"
+    | "lead_contacted"
+    | "lead_converted";
+  message: string;
+  timestamp: string;
 }

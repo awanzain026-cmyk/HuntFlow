@@ -23,7 +23,7 @@ export default function MobileNav() {
             <Link
               key={href}
               href={href}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
+              className={`cursor-pointer flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
                 active ? "text-[#6C63FF]" : "text-gray-500"
               }`}
             >

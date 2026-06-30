@@ -66,14 +66,14 @@ export default function LeadCard({ lead, onSave, onOutreach, index = 0 }: LeadCa
       <div className="flex gap-2">
         <button
           onClick={() => onOutreach?.(lead)}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium accent-gradient text-white hover:opacity-90 transition-all"
+          className="cursor-pointer flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium accent-gradient text-white hover:opacity-90 transition-all"
         >
           <Sparkles className="w-4 h-4" />
           Write Outreach
         </button>
         <button
           onClick={() => onSave?.(lead)}
-          className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+          className={`cursor-pointer flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
             lead.saved
               ? "border-[#6C63FF]/30 text-[#6C63FF] bg-[#6C63FF]/10"
               : "border-gray-700 text-gray-300 hover:border-[#6C63FF]/30 hover:text-[#6C63FF]"

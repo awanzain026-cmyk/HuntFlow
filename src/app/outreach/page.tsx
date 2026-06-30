@@ -56,7 +56,6 @@ export default function OutreachPage() {
     try {
       const result = await generateOutreach(
         selectedLead.businessName,
-        selectedLead.businessName,
         selectedLead.painPoint,
         platform,
         selectedLead.ownerName
@@ -171,7 +170,7 @@ export default function OutreachPage() {
                 <button
                   key={p}
                   onClick={() => setPlatform(p)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-3 rounded-xl text-xs font-medium transition-all ${
+                  className={`cursor-pointer flex-1 flex items-center justify-center gap-1.5 px-3 py-3 rounded-xl text-xs font-medium transition-all ${
                     platform === p
                       ? "bg-[#6C63FF]/15 text-[#6C63FF] border border-[#6C63FF]/20"
                       : "bg-[#0a0a0f] text-gray-400 border border-gray-800 hover:border-gray-700"
@@ -188,7 +187,7 @@ export default function OutreachPage() {
             <button
               onClick={handleGenerate}
               disabled={!selectedLead || loading}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-medium accent-gradient text-white hover:opacity-90 disabled:opacity-50 transition-all"
+              className="cursor-pointer w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-medium accent-gradient text-white hover:opacity-90 disabled:opacity-50 transition-all"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -241,7 +240,7 @@ export default function OutreachPage() {
             <div className="flex gap-2">
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium glass text-gray-300 hover:text-white transition-all"
+                className="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium glass text-gray-300 hover:text-white transition-all"
               >
                 {copied ? (
                   <Check className="w-3.5 h-3.5 text-green-400" />
@@ -252,14 +251,14 @@ export default function OutreachPage() {
               </button>
               <button
                 onClick={handleSaveDraft}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium glass text-gray-300 hover:text-white transition-all"
+                className="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium glass text-gray-300 hover:text-white transition-all"
               >
                 <Save className="w-3.5 h-3.5" />
                 {saved ? "Saved!" : "Save Draft"}
               </button>
               <button
                 onClick={handleGenerate}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium glass text-gray-300 hover:text-white transition-all"
+                className="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium glass text-gray-300 hover:text-white transition-all"
               >
                 <RotateCw className="w-3.5 h-3.5" />
                 Regenerate
@@ -309,7 +308,7 @@ export default function OutreachPage() {
                     </span>
                     <button
                       onClick={() => handleDeleteDraft(draft.id)}
-                      className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                      className="cursor-pointer p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

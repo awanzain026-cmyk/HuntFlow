@@ -5,7 +5,8 @@ function getItem<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
+  } catch (e) {
+    console.warn("[store] Failed to parse", key, e);
     return fallback;
   }
 }
@@ -25,7 +26,12 @@ export function saveLeads(leads: Lead[]): void {
 
 export function addLead(lead: Lead): void {
   const leads = getLeads();
-  leads.unshift(lead);
+  const existing = leads.findIndex((l) => l.id === lead.id);
+  if (existing !== -1) {
+    leads[existing] = { ...leads[existing], ...lead };
+  } else {
+    leads.unshift(lead);
+  }
   saveLeads(leads);
 }
 
@@ -39,8 +45,7 @@ export function updateLead(id: string, updates: Partial<Lead>): void {
 }
 
 export function deleteLead(id: string): void {
-  const leads = getLeads().filter((l) => l.id !== id);
-  saveLeads(leads);
+  setItem("huntflow_leads", getLeads().filter((l) => l.id !== id));
 }
 
 export function getDrafts(): Draft[] {
@@ -58,8 +63,7 @@ export function addDraft(draft: Draft): void {
 }
 
 export function deleteDraft(id: string): void {
-  const drafts = getDrafts().filter((d) => d.id !== id);
-  saveDrafts(drafts);
+  setItem("huntflow_drafts", getDrafts().filter((d) => d.id !== id));
 }
 
 export function getActivities(): Activity[] {
@@ -84,5 +88,9 @@ export function clearAllLeads(): void {
 }
 
 export function generateId(): string {
-  return crypto.randomUUID();
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return Date.now().toString(36) + Math.random().toString(36).substring(2, 10);
+  }
 }

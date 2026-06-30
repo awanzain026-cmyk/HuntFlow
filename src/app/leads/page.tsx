@@ -46,15 +46,18 @@ export default function LeadsPage() {
   }, [leads, search, filter]);
 
   const handleStatusChange = (id: string, status: Lead["status"]) => {
-    updateLead(id, { status });
+    const lead = leads.find((l) => l.id === id);
+    const updates: Partial<Lead> = { status };
+    if (status === "Contacted") updates.lastContacted = new Date().toISOString();
+    updateLead(id, updates);
     refresh();
     if (selected?.id === id) {
-      setSelected((prev) => (prev ? { ...prev, status } : null));
+      setSelected((prev) => (prev ? { ...prev, ...updates } : null));
     }
     addActivity({
       id: generateId(),
       type: status === "Converted" ? "lead_converted" : "lead_contacted",
-      message: `${status} lead: ${leads.find((l) => l.id === id)?.businessName}`,
+      message: `${status} lead: ${lead?.businessName ?? "Unknown"}`,
       timestamp: new Date().toISOString(),
     });
   };
@@ -65,10 +68,15 @@ export default function LeadsPage() {
     refresh();
   };
 
+  const escapeCsv = (val: string | number) => {
+    const s = String(val);
+    return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
   const exportCsv = () => {
     const headers = ["Business", "Owner", "Location", "Type", "Size", "Score", "Status", "Email", "Pain Point"];
     const rows = leads.map((l) =>
-      [l.businessName, l.ownerName, l.location, l.businessType, l.businessSize, l.score, l.status, l.email, `"${l.painPoint}"`].join(",")
+      [l.businessName, l.ownerName, l.location, l.businessType, l.businessSize, l.score, l.status, l.email, escapeCsv(l.painPoint)].map(escapeCsv).join(",")
     );
     const csv = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -99,7 +107,7 @@ export default function LeadsPage() {
         </div>
         <button
           onClick={exportCsv}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium glass text-gray-300 hover:text-white hover:border-[#6C63FF]/20 transition-all"
+          className="cursor-pointer flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium glass text-gray-300 hover:text-white hover:border-[#6C63FF]/20 transition-all"
         >
           <Download className="w-4 h-4" />
           Export CSV
@@ -128,7 +136,7 @@ export default function LeadsPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+               className={`cursor-pointer px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
                 filter === f
                   ? "bg-[#6C63FF]/15 text-[#6C63FF] border border-[#6C63FF]/20"
                   : "text-gray-400 border border-gray-800 hover:border-gray-700"
@@ -231,7 +239,7 @@ export default function LeadsPage() {
                             e.stopPropagation();
                             handleDelete(lead.id);
                           }}
-                          className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                          className="cursor-pointer p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

@@ -70,7 +70,6 @@ Return ONLY the JSON array, no other text.`;
 }
 
 export async function generateOutreach(
-  leadName: string,
   businessName: string,
   painPoint: string,
   platform: "LinkedIn DM" | "Email" | "WhatsApp",
