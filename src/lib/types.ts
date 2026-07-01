@@ -7,6 +7,8 @@ export interface Lead {
   businessSize: "Small" | "Medium";
   painPoint: string;
   email: string;
+  website: string;
+  snippet: string;
   score: number;
   scoreLabel: "🔥 Hot" | "⚡ Warm" | "❄️ Cold";
   status: "New" | "Contacted" | "Replied" | "Converted";

@@ -1,8 +1,8 @@
 "use client";
 
 import type { Lead } from "@/lib/types";
-import { MapPin, Building2, Users, Mail, Sparkles, BookmarkPlus, BookmarkCheck } from "lucide-react";
-import { motion } from "framer-motion";
+import { MapPin, Building2, Mail, Sparkles, BookmarkPlus, BookmarkCheck, Globe, ExternalLink } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 
 interface LeadCardProps {
   lead: Lead;
@@ -12,6 +12,8 @@ interface LeadCardProps {
 }
 
 export default function LeadCard({ lead, onSave, onOutreach, index = 0 }: LeadCardProps) {
+  const prefersReduced = useReducedMotion();
+
   const glowClass =
     lead.scoreLabel === "🔥 Hot"
       ? "glow-hot"
@@ -28,17 +30,15 @@ export default function LeadCard({ lead, onSave, onOutreach, index = 0 }: LeadCa
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.08, duration: 0.4 }}
+      {...(prefersReduced ? {} : { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { delay: index * 0.08, duration: 0.4 } })}
       className={`glass rounded-2xl p-5 ${glowClass} hover:bg-[#1a1a2e]/90 transition-all`}
     >
       <div className="flex items-start justify-between mb-3">
-        <div>
-          <h3 className="text-lg font-semibold text-white">{lead.businessName}</h3>
-          <p className="text-sm text-gray-400">{lead.ownerName}</p>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-lg font-semibold text-white truncate">{lead.businessName}</h3>
+          <p className="text-sm text-gray-400 truncate">{lead.ownerName}</p>
         </div>
-        <div className={`text-right ${scoreColor}`}>
+        <div className={`text-right shrink-0 ml-3 ${scoreColor}`}>
           <p className="text-2xl font-bold">{lead.score}</p>
           <p className="text-xs font-medium">{lead.scoreLabel}</p>
         </div>
@@ -51,17 +51,31 @@ export default function LeadCard({ lead, onSave, onOutreach, index = 0 }: LeadCa
         <span className="flex items-center gap-1">
           <Building2 className="w-3 h-3" /> {lead.businessType}
         </span>
-        <span className="flex items-center gap-1">
-          <Users className="w-3 h-3" /> {lead.businessSize}
-        </span>
-        <span className="flex items-center gap-1">
-          <Mail className="w-3 h-3" /> {lead.email}
-        </span>
+        {lead.email && (
+          <span className="flex items-center gap-1">
+            <Mail className="w-3 h-3" /> {lead.email}
+          </span>
+        )}
       </div>
 
-      <p className="text-sm text-gray-300 mb-4 italic">
-        &ldquo;{lead.painPoint}&rdquo;
-      </p>
+      {lead.snippet && (
+        <p className="text-sm text-gray-300 mb-3 line-clamp-2">
+          {lead.snippet}
+        </p>
+      )}
+
+      {lead.website && (
+        <a
+          href={lead.website}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-xs text-[#6C63FF] hover:text-[#8B83FF] mb-4 transition-colors"
+        >
+          <Globe className="w-3.5 h-3.5" />
+          <span className="truncate">{lead.website.replace(/^https?:\/\//, "")}</span>
+          <ExternalLink className="w-3 h-3 shrink-0" />
+        </a>
+      )}
 
       <div className="flex gap-2">
         <button

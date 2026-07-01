@@ -20,7 +20,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import KpiCard from "@/components/KpiCard";
 import LeadCard from "@/components/LeadCard";
 import { LeadCardSkeleton } from "@/components/Skeleton";
-import { generateLeads } from "@/lib/ai";
+import { enrichSearchResults } from "@/lib/ai";
 import type { Lead, Activity } from "@/lib/types";
 import {
   getLeads,
@@ -86,23 +86,51 @@ export default function DashboardPage() {
     setLoading(true);
     setGeneratedLeads([]);
     try {
-      const raw = await generateLeads(idealClient.trim(), service.trim());
+      // Step 1: Search Google for real businesses via Serper
+      const searchQuery = `${idealClient.trim()} ${service.trim()} Pakistan`;
+      console.log("[Dashboard] Searching for:", searchQuery);
+
+      const searchRes = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: searchQuery, num: 10 }),
+      });
+
+      if (!searchRes.ok) {
+        const errData = await searchRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Search failed (${searchRes.status})`);
+      }
+
+      const searchData = await searchRes.json();
+      const realResults = searchData.results || [];
+
+      if (realResults.length === 0) {
+        throw new Error("No real businesses found. Try a different search query.");
+      }
+
+      console.log("[Dashboard] Found", realResults.length, "real results from Google");
+
+      // Step 2: Enrich search results with AI
+      const raw = await enrichSearchResults(realResults, service.trim(), idealClient.trim());
       const cleaned = raw.replace(/```json|```JSON|```/g, "").trim();
       const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error("AI response did not contain valid lead data.");
+      if (!jsonMatch) throw new Error("AI enrichment failed.");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parsed: any[] = JSON.parse(jsonMatch[0]);
-      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("AI returned empty lead array");
+      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("AI returned empty leads");
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const scored: Lead[] = parsed.map((p: any) => ({
         id: generateId(),
         businessName: p.businessName || "Unknown Business",
-        ownerName: p.ownerName || "Unknown Owner",
+        ownerName: p.ownerName || "Contact via Website",
         businessType: p.businessType || "General",
         location: p.location || "Pakistan",
         businessSize: (p.businessSize === "Small" || p.businessSize === "Medium") ? p.businessSize : "Small",
-        painPoint: p.painPoint || "Needs digital solutions",
-        email: p.email || "contact@example.com",
+        painPoint: p.painPoint || "Potential client",
+        email: p.email || "",
+        website: p.website || "",
+        snippet: p.snippet || "",
         score: typeof p.score === "number" ? p.score : 50,
         scoreLabel: (p.score ?? 50) >= 80 ? "🔥 Hot" : (p.score ?? 50) >= 50 ? "⚡ Warm" : "❄️ Cold",
         status: "New",
@@ -113,12 +141,12 @@ export default function DashboardPage() {
       addActivity({
         id: generateId(),
         type: "lead_found",
-        message: `AI found ${scored.length} leads for "${service}"`,
+        message: `Found ${scored.length} real leads from Google search for "${service}"`,
         timestamp: new Date().toISOString(),
       });
       setActivities(getActivities().slice(0, 5));
     } catch (e) {
-      console.error("[Dashboard] AI generation error:", e);
+      console.error("[Dashboard] Hunt error:", e);
       const msg = e instanceof Error ? e.message : "Unknown error";
       setError(msg.slice(0, 300));
     } finally {
@@ -234,7 +262,7 @@ export default function DashboardPage() {
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
             {loading ? "Hunting..." : "Hunt Leads"}
           </button>
-          <p className="text-xs text-gray-500">AI generates 8 tailored leads from Pakistani markets</p>
+          <p className="text-xs text-gray-500">Searches Google for real businesses, then enriches with AI</p>
         </div>
       </motion.div>
 

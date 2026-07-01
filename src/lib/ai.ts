@@ -45,28 +45,33 @@ export async function callAI(prompt: string, maxTokens = 1024): Promise<string> 
   return data.content;
 }
 
-export async function generateLeads(idealClient: string, service: string): Promise<string> {
-  console.log("[generateLeads] Starting with:", { idealClient, service });
+export async function enrichSearchResults(
+  results: Array<{ title: string; link: string; snippet: string }>,
+  service: string,
+  idealClient: string
+): Promise<string> {
+  const resultsJson = JSON.stringify(results, null, 2);
+  const prompt = `You are a lead enrichment AI. Below are Google search results for potential clients needing "${service}" services.
 
-  const prompt = `You are a lead generation AI. Generate exactly 8 realistic business leads for a freelancer named Muhammad Zain who offers "${service}" services.
+Ideal client: "${idealClient}"
 
-Ideal client description: "${idealClient}"
+For EACH search result, extract:
+- businessName: The real business name from the title
+- ownerName: The likely owner/decision maker (if name found in snippet, use it; otherwise "Contact via Website")
+- businessType: The industry/category (e.g. Retail, Tech, Healthcare, etc.)
+- location: Any location mentioned, or "Pakistan" if not found
+- businessSize: "Small" or "Medium" based on context
+- painPoint: One specific line about why they might need "${service}", based on the snippet
+- email: Generate the most likely contact email (info@domain.com, contact@domain.com, or hello@domain.com from the URL)
+- website: The full URL from the search result
+- score: A relevance score 0-100 based on how well they match "${idealClient}"
 
-For each lead, provide:
-- Business Name (realistic Pakistani business)
-- Owner Name (realistic Pakistani name)
-- Business Type (e.g. Retail, Manufacturing, Tech, Healthcare, Education, Real Estate, E-commerce, Logistics)
-- Location (choose from: Karachi, Lahore, Islamabad, Faisalabad, Rawalpindi, Multan, Peshawar, Quetta, Sialkot, Hyderabad)
-- Business Size (Small or Medium)
-- Pain Point (one specific line about why they need "${service}")
-- Contact Email (realistic format like info@businessname.com or owner.name@gmail.com)
-- Lead Score (0-100, be realistic — some should be high, some medium, some low)
+Return ONLY a JSON array of objects with these exact keys. No markdown, no extra text.
 
-Format as JSON array. Each object: { "businessName", "ownerName", "businessType", "location", "businessSize", "painPoint", "email", "score" }
+Search results:
+${resultsJson}`;
 
-Return ONLY the JSON array, no other text.`;
-
-  return callAI(prompt, 3072);
+  return callAI(prompt, 4096);
 }
 
 export async function generateOutreach(
