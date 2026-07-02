@@ -50,28 +50,21 @@ export async function enrichSearchResults(
   service: string,
   idealClient: string
 ): Promise<string> {
-  const resultsJson = JSON.stringify(results, null, 2);
-  const prompt = `You are a lead enrichment AI. Below are Google search results for potential clients needing "${service}" services.
-
-Ideal client: "${idealClient}"
-
-For EACH search result, extract:
-- businessName: The real business name from the title
-- ownerName: The likely owner/decision maker (if name found in snippet, use it; otherwise "Contact via Website")
-- businessType: The industry/category (e.g. Retail, Tech, Healthcare, etc.)
-- location: Any location mentioned, or "Pakistan" if not found
-- businessSize: "Small" or "Medium" based on context
-- painPoint: One specific line about why they might need "${service}", based on the snippet
-- email: Generate the most likely contact email (info@domain.com, contact@domain.com, or hello@domain.com from the URL)
-- website: The full URL from the search result
-- score: A relevance score 0-100 based on how well they match "${idealClient}"
-
-Return ONLY a JSON array of objects with these exact keys. No markdown, no extra text.
-
-Search results:
-${resultsJson}`;
-
-  return callAI(prompt, 4096);
+  console.log("[enrichSearchResults] Sending", results.length, "results for enrichment");
+  const res = await fetch("/api/ai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      searchResults: results,
+      service,
+      idealClient,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.content) {
+    throw new Error(data.error || `Enrichment failed (${res.status})`);
+  }
+  return data.content;
 }
 
 export async function generateOutreach(
