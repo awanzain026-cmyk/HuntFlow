@@ -20,7 +20,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import KpiCard from "@/components/KpiCard";
 import LeadCard from "@/components/LeadCard";
 import { LeadCardSkeleton } from "@/components/Skeleton";
-import { enrichSearchResults } from "@/lib/ai";
+import { enrichSearchResults, findRealEmails, extractDomain } from "@/lib/ai";
 import type { Lead, Activity } from "@/lib/types";
 import {
   getLeads,
@@ -128,24 +128,31 @@ export default function DashboardPage() {
       const parsed: any[] = JSON.parse(jsonMatch[0]);
       if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("AI returned empty leads");
 
+      // Step 3: Find real emails via Hunter API (replaces AI guesses)
+      const realEmails = await findRealEmails(parsed);
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const scored: Lead[] = parsed.map((p: any) => ({
-        id: generateId(),
-        businessName: p.businessName || "Unknown Business",
-        ownerName: p.ownerName || "Contact via Website",
-        businessType: p.businessType || "General",
-        location: p.location || "Pakistan",
-        businessSize: (p.businessSize === "Small" || p.businessSize === "Medium") ? p.businessSize : "Small",
-        painPoint: p.painPoint || "Potential client",
-        email: p.email || "",
-        website: p.website || "",
-        snippet: p.snippet || "",
-        score: typeof p.score === "number" ? p.score : 50,
-        scoreLabel: (p.score ?? 50) >= 80 ? "🔥 Hot" : (p.score ?? 50) >= 50 ? "⚡ Warm" : "❄️ Cold",
-        status: "New",
-        createdAt: new Date().toISOString(),
-        saved: false,
-      }));
+      const scored: Lead[] = parsed.map((p: any) => {
+        const website = p.website || "";
+        const realEmail = website ? realEmails.get(website) || realEmails.get(extractDomain(website) || "") : undefined;
+        return {
+          id: generateId(),
+          businessName: p.businessName || "Unknown Business",
+          ownerName: realEmail?.ownerName || p.ownerName || "Contact via Website",
+          businessType: p.businessType || "General",
+          location: p.location || "Pakistan",
+          businessSize: (p.businessSize === "Small" || p.businessSize === "Medium") ? p.businessSize : "Small",
+          painPoint: p.painPoint || "Potential client",
+          email: realEmail?.email || p.email || "",
+          website,
+          snippet: p.snippet || "",
+          score: typeof p.score === "number" ? p.score : 50,
+          scoreLabel: (p.score ?? 50) >= 80 ? "🔥 Hot" : (p.score ?? 50) >= 50 ? "⚡ Warm" : "❄️ Cold",
+          status: "New",
+          createdAt: new Date().toISOString(),
+          saved: false,
+        };
+      });
       setGeneratedLeads(scored);
       addActivity({
         id: generateId(),
