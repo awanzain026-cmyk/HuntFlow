@@ -39,9 +39,9 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await res.json();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const results = (data.organic || [])
-      .filter((r: any) => {
+    interface SearchItem { title?: string; link?: string; snippet?: string }
+    const results = ((data.organic || []) as SearchItem[])
+      .filter((r) => {
         const link = (r.link || "").toLowerCase();
         // Exclude academic/university/research domains
         const badDomains = [
@@ -58,8 +58,7 @@ export async function POST(req: NextRequest) {
         if (badDomains.some((d) => link.includes(d))) return false;
         return true;
       })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((r: any) => ({
+      .map((r) => ({
         title: r.title || "",
         link: r.link || "",
         snippet: r.snippet || "",

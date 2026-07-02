@@ -5,7 +5,8 @@ const SODEM_API = "https://sodeom.com/v1/chat/completions";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    let { prompt, maxTokens = 1024, searchResults, service, idealClient } = body;
+    let { prompt, maxTokens = 1024 } = body;
+    const { searchResults, service, idealClient } = body;
 
     // If search results provided, construct enrichment prompt server-side
     if (searchResults && Array.isArray(searchResults)) {
