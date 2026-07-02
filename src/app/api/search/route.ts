@@ -40,13 +40,30 @@ export async function POST(req: NextRequest) {
 
     const data = await res.json();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const results = (data.organic || []).map((r: any) => ({
-      title: r.title || "",
-      link: r.link || "",
-      snippet: r.snippet || "",
-    }));
+    const results = (data.organic || [])
+      .filter((r: any) => {
+        const link = (r.link || "").toLowerCase();
+        // Exclude academic/university/research domains
+        const badDomains = [
+          ".edu", ".ac.", "researchgate", "academia.edu", "scholar.",
+          "sciencedirect", "springer", "tandfonline", "wiley.com",
+          "sagepub", "semanticscholar", "pubmed.", "ncbi.nlm",
+          "ieee.org", "ssrn.com", "cambridge.org", "oxford.",
+          "springeropen", "degruyter", "emerald.com", "ingentaconnect",
+          "jstor.org", "proquest.", "econstor", "ideas.repec",
+          "macrothink", "core.ac.uk", "eric.ed.gov",
+        ];
+        if (badDomains.some((d) => link.includes(d))) return false;
+        return true;
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((r: any) => ({
+        title: r.title || "",
+        link: r.link || "",
+        snippet: r.snippet || "",
+      }));
 
-    console.log("[API/search] Got", results.length, "results");
+    console.log("[API/search] Got", results.length, "real results (filtered from", data.organic?.length || 0, ")");
     return NextResponse.json({ results });
   } catch (err) {
     console.error("[API/search] Internal error:", err);

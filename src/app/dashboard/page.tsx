@@ -87,7 +87,9 @@ export default function DashboardPage() {
     setGeneratedLeads([]);
     try {
       // Step 1: Search Google for real businesses via Serper
-      const searchQuery = `${idealClient.trim()} ${service.trim()} Pakistan`;
+      const queryTerms = [idealClient.trim(), service.trim(), "Pakistan"];
+      const excludes = ["-paper", "-study", "-research", "-journal", "-thesis", "-dissertation", "-pdf", "-analysis"];
+      const searchQuery = [...queryTerms, ...excludes].join(" ");
       console.log("[Dashboard] Searching for:", searchQuery);
 
       const searchRes = await fetch("/api/search", {
