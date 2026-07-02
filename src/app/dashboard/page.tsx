@@ -87,8 +87,15 @@ export default function DashboardPage() {
     setGeneratedLeads([]);
     try {
       // Step 1: Search Google for real businesses via Serper
-      const queryTerms = [idealClient.trim(), service.trim(), "Pakistan"];
-      const excludes = ["-paper", "-study", "-research", "-journal", "-thesis", "-dissertation", "-pdf", "-analysis"];
+      const queryTerms = [
+        idealClient.trim(),
+        service.trim(),
+        "Pakistan company",
+      ];
+      const excludes = [
+        "-paper", "-study", "-research", "-journal", "-thesis",
+        "-dissertation", "-pdf", "-analysis", "-review",
+      ];
       const searchQuery = [...queryTerms, ...excludes].join(" ");
       console.log("[Dashboard] Searching for:", searchQuery);
 

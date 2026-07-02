@@ -52,6 +52,8 @@ export async function POST(req: NextRequest) {
           "springeropen", "degruyter", "emerald.com", "ingentaconnect",
           "jstor.org", "proquest.", "econstor", "ideas.repec",
           "macrothink", "core.ac.uk", "eric.ed.gov",
+          "instagram.com", "facebook.com", "linkedin.com", "twitter.com",
+          "x.com", "youtube.com", "tiktok.com", "pinterest.",
         ];
         if (badDomains.some((d) => link.includes(d))) return false;
         return true;
