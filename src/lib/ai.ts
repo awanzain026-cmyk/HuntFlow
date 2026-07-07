@@ -67,6 +67,28 @@ export async function enrichSearchResults(
   return data.content;
 }
 
+export async function enrichPlaces(
+  places: Array<{ businessName: string; address: string; phone?: string; website?: string; rating?: number; ratingCount?: number; category?: string }>,
+  service: string,
+  idealClient: string
+): Promise<string> {
+  console.log("[enrichPlaces] Sending", places.length, "real places for enrichment");
+  const res = await fetch("/api/ai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      places,
+      service,
+      idealClient,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.content) {
+    throw new Error(data.error || `Enrichment failed (${res.status})`);
+  }
+  return data.content;
+}
+
 export function extractDomain(url: string): string | null {
   try {
     const u = new URL(url);

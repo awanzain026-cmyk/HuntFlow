@@ -8,6 +8,7 @@ export interface Lead {
   painPoint: string;
   email: string;
   website: string;
+  phone?: string;
   snippet: string;
   score: number;
   scoreLabel: "🔥 Hot" | "⚡ Warm" | "❄️ Cold";
