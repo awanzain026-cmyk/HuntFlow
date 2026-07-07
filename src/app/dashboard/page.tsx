@@ -20,7 +20,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import KpiCard from "@/components/KpiCard";
 import LeadCard from "@/components/LeadCard";
 import { LeadCardSkeleton } from "@/components/Skeleton";
-import { enrichSearchResults, findRealEmails, extractDomain } from "@/lib/ai";
+import { enrichPlaces, findRealEmails, extractDomain } from "@/lib/ai";
 import type { Lead, Activity } from "@/lib/types";
 import {
   getLeads,
@@ -40,6 +40,16 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [idealClient, setIdealClient] = useState("");
   const [service, setService] = useState("");
+  const [country, setCountry] = useState("pk");
+
+  const countries = [
+    { code: "pk", label: "🇵🇰 Pakistan", gl: "pk", location: "Pakistan" },
+    { code: "us", label: "🇺🇸 United States", gl: "us", location: "United States" },
+    { code: "gb", label: "🇬🇧 United Kingdom", gl: "gb", location: "United Kingdom" },
+    { code: "ca", label: "🇨🇦 Canada", gl: "ca", location: "Canada" },
+    { code: "au", label: "🇦🇺 Australia", gl: "au", location: "Australia" },
+    { code: "ae", label: "🇦🇪 UAE (Dubai)", gl: "ae", location: "Dubai, United Arab Emirates" },
+  ];
   const [loading, setLoading] = useState(false);
   const [generatedLeads, setGeneratedLeads] = useState<Lead[]>([]);
   const [error, setError] = useState("");
@@ -86,41 +96,40 @@ export default function DashboardPage() {
     setLoading(true);
     setGeneratedLeads([]);
     try {
-      // Step 1: Search Google for real businesses via Serper
-      const queryTerms = [
-        idealClient.trim(),
-        service.trim(),
-        "Pakistan company",
-      ];
-      const excludes = [
-        "-paper", "-study", "-research", "-journal", "-thesis",
-        "-dissertation", "-pdf", "-analysis", "-review",
-      ];
-      const searchQuery = [...queryTerms, ...excludes].join(" ");
-      console.log("[Dashboard] Searching for:", searchQuery);
+      // Step 1: Find the selected country's search settings
+      const selectedCountry = countries.find((c) => c.code === country) || countries[0];
 
-      const searchRes = await fetch("/api/search", {
+      // Step 2: Search Google Maps/Places for real businesses via Serper (real name, address, phone, website, rating)
+      const placesQuery = `${service.trim()} for ${idealClient.trim()}`;
+      console.log("[Dashboard] Searching Places for:", placesQuery, "in", selectedCountry.location);
+
+      const placesRes = await fetch("/api/places", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: searchQuery, num: 10 }),
+        body: JSON.stringify({
+          query: placesQuery,
+          gl: selectedCountry.gl,
+          location: selectedCountry.location,
+          num: 15,
+        }),
       });
 
-      if (!searchRes.ok) {
-        const errData = await searchRes.json().catch(() => ({}));
-        throw new Error(errData.error || `Search failed (${searchRes.status})`);
+      if (!placesRes.ok) {
+        const errData = await placesRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Search failed (${placesRes.status})`);
       }
 
-      const searchData = await searchRes.json();
-      const realResults = searchData.results || [];
+      const placesData = await placesRes.json();
+      const realPlaces = placesData.places || [];
 
-      if (realResults.length === 0) {
-        throw new Error("No real businesses found. Try a different search query.");
+      if (realPlaces.length === 0) {
+        throw new Error(`No real businesses found in ${selectedCountry.location}. Try a broader service/client description.`);
       }
 
-      console.log("[Dashboard] Found", realResults.length, "real results from Google");
+      console.log("[Dashboard] Found", realPlaces.length, "real places in", selectedCountry.location);
 
-      // Step 2: Enrich search results with AI
-      const raw = await enrichSearchResults(realResults, service.trim(), idealClient.trim());
+      // Step 3: Enrich real place data with AI (no email/phone/website guessing — only real data used)
+      const raw = await enrichPlaces(realPlaces, service.trim(), idealClient.trim());
       const cleaned = raw.replace(/```json|```JSON|```/g, "").trim();
       const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("AI enrichment failed.");
@@ -140,11 +149,12 @@ export default function DashboardPage() {
           businessName: p.businessName || "Unknown Business",
           ownerName: realEmail?.ownerName || p.ownerName || "Contact via Website",
           businessType: p.businessType || "General",
-          location: p.location || "Pakistan",
+          location: p.location || selectedCountry.location,
           businessSize: (p.businessSize === "Small" || p.businessSize === "Medium") ? p.businessSize : "Small",
           painPoint: p.painPoint || "Potential client",
-          email: realEmail?.email || p.email || "",
+          email: realEmail?.email || "",
           website,
+          phone: p.phone || "",
           snippet: p.snippet || "",
           score: typeof p.score === "number" ? p.score : 50,
           scoreLabel: (p.score ?? 50) >= 80 ? "🔥 Hot" : (p.score ?? 50) >= 50 ? "⚡ Warm" : "❄️ Cold",
@@ -268,6 +278,18 @@ export default function DashboardPage() {
             />
           </div>
         </div>
+        <div className="mb-4">
+          <label className="block text-sm text-gray-400 mb-1.5">Target country</label>
+          <select
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            className="w-full sm:w-64 px-4 py-3 rounded-xl bg-[#0a0a0f] border border-gray-800 text-white text-sm focus:outline-none focus:border-[#6C63FF]/50 transition-all"
+          >
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>{c.label}</option>
+            ))}
+          </select>
+        </div>
         {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
         <div className="flex items-center gap-3">
           <button
@@ -278,7 +300,7 @@ export default function DashboardPage() {
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
             {loading ? "Hunting..." : "Hunt Leads"}
           </button>
-          <p className="text-xs text-gray-500">Searches Google for real businesses, then enriches with AI</p>
+          <p className="text-xs text-gray-500">Searches Google Maps for real businesses in your selected country, then enriches with AI</p>
         </div>
       </motion.div>
 
