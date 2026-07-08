@@ -100,8 +100,8 @@ export function extractDomain(url: string): string | null {
 
 export async function findRealEmails(
   leads: Array<{ website?: string; ownerName?: string; businessName?: string }>
-): Promise<Map<string, { email: string; ownerName?: string }>> {
-  const result = new Map<string, { email: string; ownerName?: string }>();
+): Promise<Map<string, { email: string; ownerName?: string; verified?: boolean; verificationStatus?: string }>> {
+  const result = new Map<string, { email: string; ownerName?: string; verified?: boolean; verificationStatus?: string }>();
 
   const tasks = leads.map(async (lead) => {
     const domain = lead.website ? extractDomain(lead.website) : null;
@@ -116,16 +116,19 @@ export async function findRealEmails(
       const data = await res.json();
       if (!data?.emails?.length) return;
 
-      const emails = data.emails;
-      // Prefer personal emails over generic (info@, contact@)
-      const personal = emails.filter((e: { type: string }) => e.type === "personal");
-      const best = personal.length > 0 ? personal[0] : emails[0];
+      // /api/email now returns a single, already-verified best candidate
+      const best = data.emails[0];
 
       const ownerName = best.firstName
         ? `${best.firstName} ${best.lastName || ""}`.trim()
         : undefined;
 
-      result.set(lead.website || domain, { email: best.email, ownerName });
+      result.set(lead.website || domain, {
+        email: best.email,
+        ownerName,
+        verified: best.verified,
+        verificationStatus: best.verificationStatus,
+      });
     } catch {
       // Silently fall back to AI-guessed email
     }
