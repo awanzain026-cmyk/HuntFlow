@@ -9,6 +9,8 @@ export interface Lead {
   email: string;
   website: string;
   phone?: string;
+  emailVerified?: boolean;
+  emailVerificationStatus?: string;
   snippet: string;
   score: number;
   scoreLabel: "🔥 Hot" | "⚡ Warm" | "❄️ Cold";

@@ -153,6 +153,8 @@ export default function DashboardPage() {
           businessSize: (p.businessSize === "Small" || p.businessSize === "Medium") ? p.businessSize : "Small",
           painPoint: p.painPoint || "Potential client",
           email: realEmail?.email || "",
+          emailVerified: realEmail?.verified || false,
+          emailVerificationStatus: realEmail?.verificationStatus || "unverified",
           website,
           phone: p.phone || "",
           snippet: p.snippet || "",

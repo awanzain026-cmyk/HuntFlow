@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const HUNTER_API = "https://api.hunter.io/v2/domain-search";
+const HUNTER_DOMAIN_SEARCH = "https://api.hunter.io/v2/domain-search";
+const HUNTER_VERIFIER = "https://api.hunter.io/v2/email-verifier";
+
+interface HunterEmail {
+  value: string;
+  type: string;
+  confidence: number;
+  first_name?: string;
+  last_name?: string;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,21 +24,54 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ emails: [] });
     }
 
-    const url = `${HUNTER_API}?domain=${encodeURIComponent(domain)}&api_key=${apiKey}`;
-    const res = await fetch(url);
-    const data = await res.json();
+    const searchUrl = `${HUNTER_DOMAIN_SEARCH}?domain=${encodeURIComponent(domain)}&api_key=${apiKey}`;
+    const searchRes = await fetch(searchUrl);
+    const searchData = await searchRes.json();
 
-    if (!res.ok || !data?.data?.emails) {
+    if (!searchRes.ok || !searchData?.data?.emails?.length) {
       return NextResponse.json({ emails: [] });
     }
 
-    const emails = data.data.emails.map((e: { value: string; type: string; confidence: number; first_name?: string; last_name?: string }) => ({
-      email: e.value,
-      type: e.type,
-      confidence: e.confidence,
-      firstName: e.first_name || "",
-      lastName: e.last_name || "",
-    }));
+    // Sort by Hunter's own confidence score, highest first
+    const sorted = (searchData.data.emails as HunterEmail[]).sort(
+      (a, b) => (b.confidence || 0) - (a.confidence || 0)
+    );
+
+    // Only verify the single best candidate -- verification calls are a separate
+    // quota cost, so we don't burn it on every email found for a domain.
+    const best = sorted[0];
+    let verifiedStatus: string | null = null;
+    let verifiedScore: number | null = null;
+
+    try {
+      const verifyUrl = `${HUNTER_VERIFIER}?email=${encodeURIComponent(best.value)}&api_key=${apiKey}`;
+      const verifyRes = await fetch(verifyUrl);
+      const verifyData = await verifyRes.json();
+      if (verifyRes.ok && verifyData?.data) {
+        verifiedStatus = verifyData.data.status; // "valid" | "invalid" | "accept_all" | "webmail" | "disposable" | "unknown"
+        verifiedScore = verifyData.data.score ?? null;
+      }
+    } catch (verifyErr) {
+      console.warn("[API/email] Verification call failed, continuing with unverified result:", verifyErr);
+    }
+
+    // Don't hand back an email we've actively confirmed is dead
+    if (verifiedStatus === "invalid" || verifiedStatus === "disposable") {
+      return NextResponse.json({ emails: [] });
+    }
+
+    const emails = [
+      {
+        email: best.value,
+        type: best.type,
+        confidence: best.confidence,
+        firstName: best.first_name || "",
+        lastName: best.last_name || "",
+        verified: verifiedStatus === "valid",
+        verificationStatus: verifiedStatus || "unverified",
+        verificationScore: verifiedScore,
+      },
+    ];
 
     return NextResponse.json({ emails });
   } catch {

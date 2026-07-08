@@ -1,7 +1,7 @@
 "use client";
 
 import type { Lead } from "@/lib/types";
-import { MapPin, Building2, Mail, Phone, Sparkles, BookmarkPlus, BookmarkCheck, Globe, ExternalLink } from "lucide-react";
+import { MapPin, Building2, Mail, Phone, Sparkles, BookmarkPlus, BookmarkCheck, Globe, ExternalLink, BadgeCheck } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 
 interface LeadCardProps {
@@ -54,6 +54,9 @@ export default function LeadCard({ lead, onSave, onOutreach, index = 0 }: LeadCa
         {lead.email && (
           <span className="flex items-center gap-1">
             <Mail className="w-3 h-3" /> {lead.email}
+            {lead.emailVerified && (
+              <BadgeCheck className="w-3.5 h-3.5 text-green-500" aria-label="Verified deliverable email" />
+            )}
           </span>
         )}
         {lead.phone && (
