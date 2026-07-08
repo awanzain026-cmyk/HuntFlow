@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { generateOutreach } from "@/lib/ai";
 import type { Lead, Draft } from "@/lib/types";
-import { getLeads, getDrafts, addDraft, deleteDraft, generateId, addActivity } from "@/lib/store";
+import { fetchLeads } from "@/lib/api-leads";
+import { getDrafts, addDraft, deleteDraft, generateId, addActivity } from "@/lib/store";
 
 const platforms = ["LinkedIn DM", "Email", "WhatsApp"] as const;
 
@@ -30,8 +31,9 @@ export default function OutreachPage() {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const refresh = useCallback(() => {
-    setLeads(getLeads().filter((l) => l.saved));
+  const refresh = useCallback(async () => {
+    const all = await fetchLeads();
+    setLeads(all.filter((l) => l.saved));
     setDrafts(getDrafts());
   }, []);
 

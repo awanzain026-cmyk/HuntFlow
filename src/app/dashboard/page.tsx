@@ -22,10 +22,8 @@ import LeadCard from "@/components/LeadCard";
 import { LeadCardSkeleton } from "@/components/Skeleton";
 import { enrichPlaces, findRealEmails, extractDomain } from "@/lib/ai";
 import type { Lead, Activity } from "@/lib/types";
+import { fetchLeads, saveLeadRemote, updateLeadRemote } from "@/lib/api-leads";
 import {
-  getLeads,
-  addLead,
-  updateLead,
   addActivity,
   getActivities,
   generateId,
@@ -55,8 +53,9 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [confirmClear, setConfirmClear] = useState(false);
 
-  const refreshData = useCallback(() => {
-    setLeads(getLeads());
+  const refreshData = useCallback(async () => {
+    const all = await fetchLeads();
+    setLeads(all);
     setActivities(getActivities().slice(0, 5));
   }, []);
 
@@ -182,13 +181,13 @@ export default function DashboardPage() {
     }
   };
 
-  const handleSave = (lead: Lead) => {
+  const handleSave = async (lead: Lead) => {
     const willSave = !lead.saved;
     const updated = { ...lead, saved: willSave };
     if (willSave) {
-      addLead(updated);
+      await saveLeadRemote(updated);
     } else {
-      updateLead(lead.id, { saved: false });
+      await updateLeadRemote(lead.id, { saved: false });
     }
     setGeneratedLeads((prev) => prev.map((l) => (l.id === lead.id ? updated : l)));
     refreshData();
@@ -201,9 +200,9 @@ export default function DashboardPage() {
     setActivities(getActivities().slice(0, 5));
   };
 
-  const handleOutreach = (lead: Lead) => {
+  const handleOutreach = async (lead: Lead) => {
     if (!lead.saved) {
-      addLead({ ...lead, saved: true });
+      await saveLeadRemote({ ...lead, saved: true });
       refreshData();
     }
     localStorage.setItem("huntflow_selected_lead", lead.id);
