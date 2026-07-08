@@ -21,16 +21,24 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.HUNTER_API_KEY;
     if (!apiKey) {
+      console.warn("[API/email] HUNTER_API_KEY is not set -- returning empty, no real lookup attempted");
       return NextResponse.json({ emails: [] });
     }
+    console.log("[API/email] Key present, searching domain:", domain);
 
     const searchUrl = `${HUNTER_DOMAIN_SEARCH}?domain=${encodeURIComponent(domain)}&api_key=${apiKey}`;
     const searchRes = await fetch(searchUrl);
     const searchData = await searchRes.json();
 
-    if (!searchRes.ok || !searchData?.data?.emails?.length) {
+    if (!searchRes.ok) {
+      console.error("[API/email] Hunter domain-search HTTP error:", searchRes.status, JSON.stringify(searchData).slice(0, 300));
       return NextResponse.json({ emails: [] });
     }
+    if (!searchData?.data?.emails?.length) {
+      console.log("[API/email] Hunter has no emails on file for domain:", domain, "-- this is a real data-coverage limit, not an error");
+      return NextResponse.json({ emails: [] });
+    }
+    console.log("[API/email] Hunter found", searchData.data.emails.length, "candidate email(s) for", domain);
 
     // Sort by Hunter's own confidence score, highest first
     const sorted = (searchData.data.emails as HunterEmail[]).sort(
