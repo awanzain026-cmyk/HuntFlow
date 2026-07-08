@@ -14,7 +14,8 @@ import {
   Clock,
 } from "lucide-react";
 import type { Lead } from "@/lib/types";
-import { getLeads, updateLead, deleteLead, generateId, addActivity } from "@/lib/store";
+import { fetchLeads, updateLeadRemote, deleteLeadRemote } from "@/lib/api-leads";
+import { generateId, addActivity } from "@/lib/store";
 
 const statuses: Lead["status"][] = ["New", "Contacted", "Replied", "Converted"];
 const filters = ["All", "🔥 Hot", "⚡ Warm", "❄️ Cold"] as const;
@@ -25,8 +26,9 @@ export default function LeadsPage() {
   const [filter, setFilter] = useState<string>("All");
   const [selected, setSelected] = useState<Lead | null>(null);
 
-  const refresh = useCallback(() => {
-    setLeads(getLeads().filter((l) => l.saved));
+  const refresh = useCallback(async () => {
+    const all = await fetchLeads();
+    setLeads(all.filter((l) => l.saved));
   }, []);
 
   useEffect(() => {
@@ -45,11 +47,11 @@ export default function LeadsPage() {
     });
   }, [leads, search, filter]);
 
-  const handleStatusChange = (id: string, status: Lead["status"]) => {
+  const handleStatusChange = async (id: string, status: Lead["status"]) => {
     const lead = leads.find((l) => l.id === id);
     const updates: Partial<Lead> = { status };
     if (status === "Contacted") updates.lastContacted = new Date().toISOString();
-    updateLead(id, updates);
+    await updateLeadRemote(id, updates);
     refresh();
     if (selected?.id === id) {
       setSelected((prev) => (prev ? { ...prev, ...updates } : null));
@@ -62,8 +64,8 @@ export default function LeadsPage() {
     });
   };
 
-  const handleDelete = (id: string) => {
-    deleteLead(id);
+  const handleDelete = async (id: string) => {
+    await deleteLeadRemote(id);
     if (selected?.id === id) setSelected(null);
     refresh();
   };
